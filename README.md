@@ -31,7 +31,24 @@ This project uses Supabase for the `orders` table and the API routes in `app/api
 
 To verify the connection, you can use the temporary route at `http://localhost:3000/api/test-supabase` or inspect the `orders` table directly in the Supabase dashboard.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase Requirements
+
+For local development and deployment, make sure the following are configured:
+
+- Add `@supabase/supabase-js` to `package.json`:
+  ```bash
+  npm install @supabase/supabase-js
+  ```
+- Set these environment variables in `coffee-ordering-app/.env.local` for development:
+  ```bash
+  NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+  ```
+- Set the same env vars in your deployment platform as secret/runtime env vars.
+- Restart the Next.js server whenever `.env.local` changes.
+- Confirm the `orders` table exists in your Supabase project and has an appropriate SELECT policy if Row Level Security (RLS) is enabled.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/optimizing-fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
 
