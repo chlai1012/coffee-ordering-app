@@ -17,6 +17,19 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase Setup
+
+This project uses Supabase for the `orders` table and the API routes in `app/api/`. To connect Supabase:
+
+1. Create or update `coffee-ordering-app/.env.local` with your project values:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+   ```
+2. Restart the Next.js development server after changing `.env.local`.
+3. The Supabase client is created in `lib/supabaseClient.ts` and used in `app/api/orders/route.ts`.
+
+To verify the connection, you can use the temporary route at `http://localhost:3000/api/test-supabase` or inspect the `orders` table directly in the Supabase dashboard.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
