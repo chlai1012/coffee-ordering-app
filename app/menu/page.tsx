@@ -12,6 +12,16 @@ export default function MenuPage() {
 
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
+  const checkout = async () => {
+    await fetch("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({ items: cart }),
+    });
+
+    alert("✅ Order sent!");
+    setCart([]);
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-base font-bold mb-6 text-center">
@@ -29,8 +39,10 @@ export default function MenuPage() {
       <div className="mt-10 border-t pt-6">
         <h2 className="text-2xl font-semibold">🛒 Cart</h2>
         <p>Total: ${total}</p>
-        <button className="mt-4 bg-green-600 text-white px-4 py-2 rounded">
-          Send Order
+        <button 
+          onClick={checkout}
+          className="mt-4 bg-green-600 text-white px-4 py-2 rounded"
+        > Send Order
         </button>
       </div>
     </div>
