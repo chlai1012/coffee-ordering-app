@@ -19,3 +19,22 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ data });
 }
+
+export async function PATCH(req: Request) {
+  const { id, status } = await req.json();
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+  });
+}
