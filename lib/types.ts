@@ -1,4 +1,7 @@
 export interface Order {
-  drink: string;
-  timestamp?: string;
+  id: string;
+  item: string;
+  quantity: number;
+  status: string;
+  created_at: string;
 }
