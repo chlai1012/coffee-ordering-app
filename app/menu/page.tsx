@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import MenuCard from "@/components/MenuCard";
-import { MenuItem, Order, OptionItem } from "@/lib/types";
+import { MenuItem, Order, OptionItem, OptionGroup, Option2Group } from "@/lib/types";
 
 type CartItem = Order & {
   selectedOptionIds?: number[];
@@ -40,22 +40,32 @@ export default function MenuPage() {
       setLoading(true);
 
       try {
-        const [menuResponse, optionsResponse, option2menuResponse] = await Promise.all([
+        const [menuResponse, optionsResponse, option2menuResponse, optionGroupsResponse, option2groupResponse] = await Promise.all([
           fetch("/api/menu"),
           fetch("/api/option"),
           fetch("/api/option2menu"),
+          fetch("/api/option_group"),
+          fetch("/api/option2group"),
         ]);
 
-        const [menuJson, optionsJson, option2menuJson] = await Promise.all([
+        const [menuJson, optionsJson, option2menuJson, optionGroupsJson, option2groupJson] = await Promise.all([
           menuResponse.json(),
           optionsResponse.json(),
           option2menuResponse.json(),
+          optionGroupsResponse.json(),
+          option2groupResponse.json(),
         ]);
 
-        if (!menuResponse.ok || !optionsResponse.ok || !option2menuResponse.ok) {
+        if (
+          !menuResponse.ok ||
+          !optionsResponse.ok ||
+          !option2menuResponse.ok ||
+          !optionGroupsResponse.ok ||
+          !option2groupResponse.ok
+        ) {
           console.error(
-            "Failed to load menu or options:",
-            menuJson.error || optionsJson.error || option2menuJson.error
+            "Failed to load menu or option group data:",
+            menuJson.error || optionsJson.error || option2menuJson.error || optionGroupsJson.error || option2groupJson.error
           );
           setMenuItems([]);
           return;
@@ -65,9 +75,27 @@ export default function MenuPage() {
         const option2MenuRows: { menu_fk: number; option_fk: number }[] = Array.isArray(option2menuJson.data)
           ? option2menuJson.data
           : [];
+        const allGroups: OptionGroup[] = Array.isArray(optionGroupsJson.data)
+          ? optionGroupsJson.data.map((group: OptionGroup) => ({
+              ...group,
+              multi_select: group.multi_select ?? false,
+              required: group.required ?? false,
+            }))
+          : [];
+        const option2GroupRows: Option2Group[] = Array.isArray(option2groupJson.data)
+          ? option2groupJson.data
+          : [];
+
+        const optionGallery = new Map<number, OptionItem>(allOptions.map((option) => [option.id, option]));
+        const optionGroupsById = new Map<number, OptionGroup>(allGroups.map((group) => [group.id, group]));
+        const groupIdsByOption = option2GroupRows.reduce<Record<number, number[]>>((acc, row) => {
+          acc[row.option_fk] = acc[row.option_fk] ?? [];
+          acc[row.option_fk].push(row.group_fk);
+          return acc;
+        }, {});
 
         const optionsByMenu = option2MenuRows.reduce<Record<number, OptionItem[]>>((acc, row) => {
-          const option = allOptions.find((opt) => opt.id === row.option_fk);
+          const option = optionGallery.get(row.option_fk);
           if (!option) return acc;
           acc[row.menu_fk] = acc[row.menu_fk] ?? [];
           acc[row.menu_fk].push(option);
@@ -75,10 +103,55 @@ export default function MenuPage() {
         }, {});
 
         const menuWithOptions: MenuItem[] = (Array.isArray(menuJson.data) ? menuJson.data : []).map(
-          (item: MenuItem) => ({
-            ...item,
-            options: optionsByMenu[item.id] ?? [],
-          })
+          (item: MenuItem) => {
+            const menuOptions = optionsByMenu[item.id] ?? [];
+            const groupedOptions = new Map<number | "ungrouped", { group: OptionGroup | null; options: OptionItem[] }>();
+
+            menuOptions.forEach((option) => {
+              const groupIds = groupIdsByOption[option.id] ?? [];
+
+              if (groupIds.length === 0) {
+                const existing = groupedOptions.get("ungrouped");
+                groupedOptions.set("ungrouped", {
+                  group: existing?.group ?? null,
+                  options: [...(existing?.options ?? []), option],
+                });
+                return;
+              }
+
+              groupIds.forEach((groupId) => {
+                const group = optionGroupsById.get(groupId);
+                if (!group) return;
+
+                const existing = groupedOptions.get(groupId);
+                groupedOptions.set(groupId, {
+                  group,
+                  options: [...(existing?.options ?? []), option],
+                });
+              });
+            });
+
+            const optionGroups = Array.from(groupedOptions.values())
+              .map((entry) => ({
+                id: entry.group?.id ?? -1,
+                name: entry.group?.name ?? "Options",
+                created_at: entry.group?.created_at ?? new Date(),
+                multi_select: entry.group?.multi_select ?? true,
+                required: entry.group?.required ?? false,
+                options: entry.options,
+              }))
+              .sort((a, b) => {
+                if (a.id === -1) return 1;
+                if (b.id === -1) return -1;
+                return a.name.localeCompare(b.name);
+              });
+
+            return {
+              ...item,
+              options: menuOptions,
+              optionGroups,
+            };
+          }
         );
 
         setMenuItems(menuWithOptions);

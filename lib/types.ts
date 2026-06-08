@@ -24,6 +24,7 @@ export interface MenuItem {
   sort: number;
   image?: string | null;
   options?: OptionItem[];
+  optionGroups?: OptionGroup[];
 }
 
 export interface OptionItem {
@@ -34,11 +35,27 @@ export interface OptionItem {
   created_at: Date;
 }
 
+export interface OptionGroup {
+  id: number;
+  name: string; 
+  created_at: Date;
+  multi_select: boolean;
+  required: boolean;
+  options: OptionItem[];
+}
+
 export interface Option2Menu {
   id: number;
   created_at: Date;
   option_fk: number;
   menu_fk: number;
+}
+
+export interface Option2Group {
+  id: number;
+  created_at: Date;
+  option_fk: number;
+  group_fk: number;
 }
 
 export interface Order2Option {
