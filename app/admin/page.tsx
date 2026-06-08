@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRef } from "react";
-import { Order } from "@/lib/types";
+import { MenuItem, Order } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
@@ -20,20 +21,75 @@ export default function AdminPage() {
     router.push('/admin/history');
   };
 
-  const fetchOrders = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .neq("status", "completed")
-      .order("created_at", { ascending: false });
+  const attachMenuItem = (order: Order, items: MenuItem[]) => {
+    const menuItem = items.find((item) => item.id === order.menu_fk);
+    return menuItem ? { ...order, menu_item: { name: menuItem.name } } : order;
+  };
 
-    if (data) setOrders(data);
+  const attachMenuItemsToOrders = (orders: Order[], items: MenuItem[]) => {
+    return orders.map((order) => attachMenuItem(order, items));
+  };
+
+  const fetchOrders = async (items: MenuItem[], signal?: AbortSignal) => {
+    try {
+      const response = await fetch("/api/order", { signal });
+      const json = await response.json();
+      const ordersData = Array.isArray(json?.data) ? json.data : [];
+
+      if (!response.ok) {
+        console.error("Failed to load orders:", json.error ?? response.statusText);
+        return [];
+      }
+
+      const mapped = attachMenuItemsToOrders(ordersData, items);
+      setOrders(mapped);
+      return mapped;
+    } catch (err) {
+      if ((err as any)?.name === "AbortError") return [];
+      console.error("fetchOrders error", err);
+      return [];
+    }
+  };
+
+  const fetchMenuItems = async (signal?: AbortSignal): Promise<MenuItem[]> => {
+    const response = await fetch("/api/menu", { signal });
+    const json = await response.json();
+    const items: MenuItem[] = Array.isArray(json?.data) ? json.data : [];
+
+    if (!response.ok) {
+      console.error("Failed to load menu items:", json.error ?? response.statusText);
+      return [];
+    }
+
+    setMenuItems(items);
+    return items;
   };
 
   useEffect(() => {
-    fetchOrders();
-    audioRef.current = new Audio("/ding.mp3");
+    if (!audioRef.current) {
+      audioRef.current = new Audio("/ding.mp3");
+    }
+  }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    const loadData = async () => {
+      try {
+        const items = await fetchMenuItems(controller.signal);
+        if (!active) return;
+        await fetchOrders(items);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("loadData error", error);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  useEffect(() => {
     const channel = supabase
       .channel("orders-channel")
       .on(
@@ -41,7 +97,7 @@ export default function AdminPage() {
         {
           event: "*",
           schema: "public",
-          table: "orders",
+          table: "order",
         },
         (payload) => {
 
@@ -49,13 +105,13 @@ export default function AdminPage() {
             if (soundEnabled) {
               audioRef.current?.play().catch(() => {});
             }
-            setOrders((prev) => [payload.new as Order, ...prev]);
+            setOrders((prev) => [attachMenuItem(payload.new as Order, menuItems), ...prev]);
           }
 
           if (payload.eventType === "UPDATE") {
             setOrders((prev) =>
               prev.map((order) =>
-                order.id === payload.new.id ? (payload.new as Order) : order
+                order.id === payload.new.id ? attachMenuItem(payload.new as Order, menuItems) : order
               )
             );
           }
@@ -66,11 +122,10 @@ export default function AdminPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [menuItems, soundEnabled]);
 
-  
   const updateStatus = async (id: string, status: string) => {
-    await fetch("/api/orders", {
+    await fetch("/api/order", {
       method: "PATCH",
       body: JSON.stringify({ id, status }),
     });
@@ -85,12 +140,20 @@ export default function AdminPage() {
           key={order.id}
           className="border p-3 mb-2 rounded shadow-sm"
         >
-          <p className={
+           <p className={
              order.status === "pending" ? "text-gray-500" :
              order.status === "making" ? "text-yellow-500" :
              "text-green-600"
-          }>{order.item}</p>
-          <p>Qty: {order.quantity}</p>
+           }>{order.menu_item?.name ?? `Menu #${order.menu_fk}`}</p>
+
+           <p className="text-sm text-gray-700">Customer: {order.customer_name ?? 'Guest'}</p>
+
+           {order.order2option && order.order2option.length > 0 && (
+            <p className="text-sm text-gray-600">Options: {order.order2option
+              .map((o) => o.option_item?.name)
+              .filter(Boolean)
+              .join(", ")}</p>
+           )}
           <p>Status: {
             order.status === "pending" ? "🕐 Pending" :
             order.status === "making" ? "👨‍🍳 Making" :

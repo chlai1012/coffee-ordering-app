@@ -16,7 +16,7 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetch = async () => {
       const { data } = await supabase
-        .from("orders")
+        .from("order")
         .select("*")
         .eq("status", "completed")
         .order("created_at", { ascending: false });
