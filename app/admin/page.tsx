@@ -3,12 +3,18 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRef } from "react";
-import { MenuItem, Order } from "@/lib/types";
+import { MenuItem, Order, OptionItem, OptionGroup, Option2Group } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [options, setOptions] = useState<OptionItem[]>([]);
+  const [optionGroupsData, setOptionGroupsData] = useState<OptionGroup[]>([]);
+  const [option2groupRows, setOption2groupRows] = useState<Option2Group[]>([]);
+  const [optionById, setOptionById] = useState<Record<number, OptionItem>>({});
+  const [groupById, setGroupById] = useState<Record<number, OptionGroup>>({});
+  const [groupIdsByOption, setGroupIdsByOption] = useState<Record<number, number[]>>({});
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
@@ -65,6 +71,48 @@ export default function AdminPage() {
     return items;
   };
 
+  const fetchOptionMetadata = async (signal?: AbortSignal) => {
+    try {
+      const [optionsResp, groupsResp, option2groupResp] = await Promise.all([
+        fetch("/api/option", { signal }),
+        fetch("/api/option_group", { signal }),
+        fetch("/api/option2group", { signal }),
+      ]);
+
+      const [optionsJson, groupsJson, option2groupJson] = await Promise.all([
+        optionsResp.json(),
+        groupsResp.json(),
+        option2groupResp.json(),
+      ]);
+
+      const opts: OptionItem[] = Array.isArray(optionsJson.data) ? optionsJson.data : [];
+      const groups: OptionGroup[] = Array.isArray(groupsJson.data) ? groupsJson.data : [];
+      const opt2grp: Option2Group[] = Array.isArray(option2groupJson.data) ? option2groupJson.data : [];
+
+      setOptions(opts);
+      setOptionGroupsData(groups);
+      setOption2groupRows(opt2grp);
+
+      const optMap: Record<number, OptionItem> = {};
+      opts.forEach((o) => (optMap[o.id] = o));
+      setOptionById(optMap);
+
+      const grpMap: Record<number, OptionGroup> = {};
+      groups.forEach((g) => (grpMap[g.id] = g));
+      setGroupById(grpMap);
+
+      const gidsByOption: Record<number, number[]> = opt2grp.reduce((acc, row) => {
+        acc[row.option_fk] = acc[row.option_fk] ?? [];
+        acc[row.option_fk].push(row.group_fk);
+        return acc;
+      }, {} as Record<number, number[]>);
+
+      setGroupIdsByOption(gidsByOption);
+    } catch (err) {
+      console.error("Failed to load option metadata", err);
+    }
+  };
+
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio("/ding.mp3");
@@ -79,6 +127,7 @@ export default function AdminPage() {
       try {
         const items = await fetchMenuItems(controller.signal);
         if (!active) return;
+        await fetchOptionMetadata(controller.signal);
         await fetchOrders(items);
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -149,12 +198,37 @@ export default function AdminPage() {
            <p className="text-sm text-gray-700">Customer: {order.customer_name ?? 'Guest'}</p>
 
            {order.order2option && order.order2option.length > 0 && (
-            <p className="text-sm text-gray-600">Options: {order.order2option
-              .map((o) => o.option_item?.name)
-              .filter(Boolean)
-              .join(", ")}</p>
+            <div className="text-sm text-gray-600">
+              {(() => {
+                const groupsMap: Record<number | string, string[]> = {};
+                (order.order2option as any[]).forEach((row) => {
+                  const optId = row.option_fk ?? row.option_item?.id;
+                  const optName = row.option_item?.name ?? optionById[optId]?.name ?? "Unknown";
+                  const gIds: number[] = groupIdsByOption[optId] ?? [];
+                  if (!gIds || gIds.length === 0) {
+                    groupsMap["ungrouped"] = groupsMap["ungrouped"] ?? [];
+                    groupsMap["ungrouped"].push(optName);
+                  } else {
+                    gIds.forEach((gid) => {
+                      groupsMap[gid] = groupsMap[gid] ?? [];
+                      groupsMap[gid].push(optName);
+                    });
+                  }
+                });
+
+                return Object.entries(groupsMap).map(([gid, names]) => (
+                  <p key={gid} className="text-sm text-gray-600">
+                    {gid === "ungrouped" ? "Options" : groupById[Number(gid)]?.name ?? "Options"}:
+                    {" "}
+                    {names.join(", ")}
+                  </p>
+                ));
+              })()}
+            </div>
            )}
+          <p> Ordered at: {new Date(order.created_at).toLocaleString()}</p>
           <p>Status: {
+            order.status === "accepted" ? "👌 Accepted" :
             order.status === "pending" ? "🕐 Pending" :
             order.status === "making" ? "👨‍🍳 Making" :
             order.status === "ready" ? "✅ Ready" :
@@ -162,6 +236,13 @@ export default function AdminPage() {
           }</p>
 
         <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => updateStatus(order.id, "accepted")}
+            className="bg-blue-600 text-white px-2 py-1 rounded"
+          >
+            Accept order
+          </button>
+
           <button
             onClick={() => updateStatus(order.id, "making")}
             className="bg-yellow-500 text-white px-2 py-1 rounded"
@@ -181,6 +262,13 @@ export default function AdminPage() {
             className="bg-gray-500 text-white px-2 py-1 rounded"
           >
             Complete
+          </button>
+
+          <button
+            onClick={() => updateStatus(order.id, "canceled")}
+            className="bg-red-600 text-white px-2 py-1 rounded"
+          >
+            Cancel order
           </button>
         </div>
 
