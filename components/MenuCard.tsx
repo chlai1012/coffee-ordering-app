@@ -9,9 +9,10 @@ interface Props {
   onToggle?: () => void;
   selectedOptionIds?: number[];
   onSelectedOptionChange?: (ids: number[]) => void;
+  customerName?: string;
 }
 
-export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle, selectedOptionIds: controlledSelectedOptionIds, onSelectedOptionChange }: Props) {
+export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle, selectedOptionIds: controlledSelectedOptionIds, onSelectedOptionChange, customerName }: Props) {
   const [internalSelectedOptionIds, setInternalSelectedOptionIds] = useState<number[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const isControlled = typeof controlledSelectedOptionIds !== "undefined";
@@ -75,6 +76,11 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
     };
 
   const handleSendOrder = async () => {
+      if (!customerName || customerName.trim() === "") {
+        alert("Please enter your name");
+        return;
+      }
+
       if (missingRequiredGroups.length > 0) {
         setShowValidation(true);
         return;
@@ -94,7 +100,8 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
 
       const confirmLines = [
         `Confirm order:`,
-        `Name: ${item.name}`,
+        `Customer: ${customerName.trim()}`,
+        `Item: ${item.name}`,
         ...selectedOptionsByGroup,
       ];
 
@@ -113,7 +120,7 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
         <h2 className="text-xl font-semibold">{item.name}</h2>
         <div className="mt-1 flex justify-between text-slate-400 text-sm">
           <span>Base price:</span>
-          <span>${item.price.toFixed(2)}</span>
+          <span>€{item.price.toFixed(2)}</span>
         </div>
 
         <button
@@ -169,7 +176,7 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
                           />
                           <span className="text-slate-100">{option.name}</span>
                         </div>
-                        <span className="text-slate-400">${option.price.toFixed(2)}</span>
+                        <span className="text-slate-400">€{option.price.toFixed(2)}</span>
                       </label>
                     ))}
                   </div>
@@ -185,7 +192,7 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
           <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900 p-3">
             <div className="flex justify-between text-sm text-slate-300">
               <span>Total:</span>
-              <span>${(item.price + optionTotal).toFixed(2)}</span>
+              <span>€{(item.price + optionTotal).toFixed(2)}</span>
             </div>
             <button
               onClick={handleSendOrder}
