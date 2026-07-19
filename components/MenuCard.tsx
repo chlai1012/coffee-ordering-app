@@ -1,5 +1,4 @@
 ﻿"use client";
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import { MenuItem, OptionItem, OptionGroup } from "@/lib/types";
 
@@ -97,14 +96,6 @@ export default function MenuCard({ item, sendOrder }: Props) {
 
   return (
     <div className="border border-slate-700 rounded-xl p-4 shadow-md flex flex-col bg-slate-950 text-slate-100">
-      <div className="relative w-full h-48 overflow-hidden rounded-lg bg-transparent">
-        <Image
-          src={item.image ?? "/noImage.png"}
-          alt={item.name}
-          fill
-          className="object-contain"
-        />
-      </div>
       <div className="mt-3 flex-1 flex flex-col">
         <h2 className="text-xl font-semibold">{item.name}</h2>
         <div className="mt-1 flex justify-between text-slate-400 text-sm">
