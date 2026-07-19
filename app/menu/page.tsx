@@ -6,6 +6,8 @@ import { MenuItem, Order, OptionItem, OptionGroup, Option2Group } from "@/lib/ty
 export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [selectedOptionsMap, setSelectedOptionsMap] = useState<Record<number, number[]>>({});
 
   const sendOrder = async (
     item: MenuItem,
@@ -189,7 +191,17 @@ export default function MenuPage() {
           <div className="col-span-full text-center text-gray-500">Loading menu…</div>
         ) : menuItems.length > 0 ? (
           menuItems.map((item) => (
-            <MenuCard key={item.id} item={item} sendOrder={sendOrder} />
+            <MenuCard
+              key={item.id}
+              item={item}
+              sendOrder={sendOrder}
+              isExpanded={expandedItemId === item.id}
+              onToggle={() => setExpandedItemId((prev) => (prev === item.id ? null : item.id))}
+              selectedOptionIds={selectedOptionsMap[item.id] ?? []}
+              onSelectedOptionChange={(ids) =>
+                setSelectedOptionsMap((prev) => ({ ...prev, [item.id]: ids }))
+              }
+            />
           ))
         ) : (
           <div className="col-span-full text-center text-gray-500">No menu items available.</div>
