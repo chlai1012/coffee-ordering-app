@@ -22,7 +22,6 @@ export interface MenuItem {
   name: string;
   price: number;
   sort: number;
-  image?: string | null;
   options?: OptionItem[];
   optionGroups?: OptionGroup[];
 }

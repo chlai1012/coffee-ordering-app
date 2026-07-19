@@ -1,17 +1,27 @@
 ﻿"use client";
-import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MenuItem, OptionItem, OptionGroup } from "@/lib/types";
 
 interface Props {
   item: MenuItem;
   sendOrder: (item: MenuItem, selectedOptionIds: number[], selectedOptions: OptionItem[]) => Promise<boolean>;
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  selectedOptionIds?: number[];
+  onSelectedOptionChange?: (ids: number[]) => void;
 }
 
-export default function MenuCard({ item, sendOrder }: Props) {
-  const [selectedOptionIds, setSelectedOptionIds] = useState<number[]>([]);
+export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle, selectedOptionIds: controlledSelectedOptionIds, onSelectedOptionChange }: Props) {
+  const [internalSelectedOptionIds, setInternalSelectedOptionIds] = useState<number[]>([]);
   const [showValidation, setShowValidation] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const isControlled = typeof controlledSelectedOptionIds !== "undefined";
+  const selectedOptionIds = isControlled ? controlledSelectedOptionIds! : internalSelectedOptionIds;
+
+  useEffect(() => {
+    if (isControlled) {
+      setInternalSelectedOptionIds(controlledSelectedOptionIds || []);
+    }
+  }, [controlledSelectedOptionIds, isControlled]);
 
   const selectedOptions = useMemo(
     () => item.options?.filter((option) => selectedOptionIds.includes(option.id)) ?? [],
@@ -42,69 +52,63 @@ export default function MenuCard({ item, sendOrder }: Props) {
     (group) => group.required && getSelectedIdsForGroup(group).length === 0
   );
 
-  const toggleOption = (optionId: number, group: OptionGroup) => {
-    if (!group.multi_select) {
-      setSelectedOptionIds((current) => {
-        const groupOptionIds = group.options.map((option) => option.id);
-        const withoutGroup = current.filter((id) => !groupOptionIds.includes(id));
-        return [...withoutGroup, optionId];
-      });
-      return;
-    }
+  const updateSelected = (updater: (current: number[]) => number[]) => {
+      const newIds = updater(selectedOptionIds);
+      if (onSelectedOptionChange) {
+        onSelectedOptionChange(newIds);
+      } else {
+        setInternalSelectedOptionIds(newIds);
+      }
+    };
 
-    setSelectedOptionIds((current) =>
-      current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId]
-    );
-  };
+    const toggleOption = (optionId: number, group: OptionGroup) => {
+      if (!group.multi_select) {
+        updateSelected((current) => {
+          const groupOptionIds = group.options.map((option) => option.id);
+          const withoutGroup = current.filter((id) => !groupOptionIds.includes(id));
+          return [...withoutGroup, optionId];
+        });
+        return;
+      }
+
+      updateSelected((current) => (current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId]));
+    };
 
   const handleSendOrder = async () => {
-    if (!isExpanded && optionGroups.length > 0) {
-      setIsExpanded(true);
-      return;
-    }
+      if (missingRequiredGroups.length > 0) {
+        setShowValidation(true);
+        return;
+      }
 
-    if (missingRequiredGroups.length > 0) {
-      setShowValidation(true);
-      return;
-    }
+      setShowValidation(false);
 
-    setShowValidation(false);
+      const selectedOptionsByGroup = optionGroups
+        .map((group) => {
+          const selectedNames = group.options
+            .filter((option) => selectedOptionIds.includes(option.id))
+            .map((option) => option.name);
 
-    const selectedOptionsByGroup = optionGroups
-      .map((group) => {
-        const selectedNames = group.options
-          .filter((option) => selectedOptionIds.includes(option.id))
-          .map((option) => option.name);
+          return selectedNames.length > 0 ? `${group.name}: ${selectedNames.join(", ")}` : null;
+        })
+        .filter(Boolean);
 
-        return selectedNames.length > 0 ? `${group.name}: ${selectedNames.join(", ")}` : null;
-      })
-      .filter(Boolean);
+      const confirmLines = [
+        `Confirm order:`,
+        `Name: ${item.name}`,
+        ...selectedOptionsByGroup,
+      ];
 
-    const confirmLines = [
-      `Confirm order:`,
-      `Name: ${item.name}`,
-      ...selectedOptionsByGroup,
-    ];
+      const confirmMessage = confirmLines.join("\n");
+      const isConfirmed = window.confirm(confirmMessage);
+      if (!isConfirmed) {
+        return;
+      }
 
-    const confirmMessage = confirmLines.join("\n");
-    const isConfirmed = window.confirm(confirmMessage);
-    if (!isConfirmed) {
-      return;
-    }
-
-    await sendOrder(item, selectedOptionIds, selectedOptions);
-  };
+      await sendOrder(item, selectedOptionIds, selectedOptions);
+    };
 
   return (
     <div className="border border-slate-700 rounded-xl p-4 shadow-md flex flex-col bg-slate-950 text-slate-100">
-      <div className="relative w-full h-48 overflow-hidden rounded-lg bg-transparent">
-        <Image
-          src={item.image ?? "/noImage.png"}
-          alt={item.name}
-          fill
-          className="object-contain"
-        />
-      </div>
       <div className="mt-3 flex-1 flex flex-col">
         <h2 className="text-xl font-semibold">{item.name}</h2>
         <div className="mt-1 flex justify-between text-slate-400 text-sm">
@@ -114,18 +118,19 @@ export default function MenuCard({ item, sendOrder }: Props) {
 
         <button
           type="button"
-          onClick={() => setIsExpanded((current) => !current)}
+          onClick={() => (onToggle ? onToggle() : undefined)}
           className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 transition duration-200 hover:bg-slate-800"
         >
           {isExpanded ? "Hide options" : "Select"}
         </button>
 
         <div
-          className="overflow-hidden transition-[max-height,opacity] duration-500 ease-in-out"
+          className="relative overflow-hidden transition-[max-height,opacity] duration-500 ease-in-out"
           style={{
             maxHeight: isExpanded ? 2000 : 0,
             opacity: isExpanded ? 1 : 0,
             pointerEvents: isExpanded ? "auto" : "none",
+            zIndex: isExpanded ? 10 : 0,
           }}
         >
           {optionGroups.length > 0 && (
