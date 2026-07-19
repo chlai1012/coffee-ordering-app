@@ -115,10 +115,10 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
     };
 
   return (
-    <div className="border border-slate-700 rounded-xl p-4 shadow-md flex flex-col bg-slate-950 text-slate-100">
+    <div className="border rounded-xl p-4 shadow-md flex flex-col bg-[var(--card-background)] text-[var(--card-foreground)] border-[var(--card-border)]">
       <div className="mt-3 flex-1 flex flex-col">
         <h2 className="text-xl font-semibold">{item.name}</h2>
-        <div className="mt-1 flex justify-between text-slate-400 text-sm">
+        <div className="mt-1 flex justify-between text-[var(--card-text-secondary)] text-sm">
           <span>Base price:</span>
           <span>€{item.price.toFixed(2)}</span>
         </div>
@@ -126,7 +126,7 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
         <button
           type="button"
           onClick={() => (onToggle ? onToggle() : undefined)}
-          className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 transition duration-200 hover:bg-slate-800"
+          className="mt-4 inline-flex items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--card-surface)] px-4 py-2 text-sm text-[var(--card-foreground)] transition duration-200 hover:bg-[var(--card-accent)]"
         >
           {isExpanded ? "Hide options" : "Select"}
         </button>
@@ -143,10 +143,10 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
           {optionGroups.length > 0 && (
             <div className="text-sm space-y-4 flex-1">
               {optionGroups.map((group) => (
-                <div key={group.id} className="rounded-xl border border-slate-700 bg-slate-900 p-3">
+                <div key={group.id} className="rounded-xl border border-[var(--card-border)] bg-[var(--card-surface)] p-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="font-medium text-slate-100">{group.name}</p>
+                      <p className="font-medium text-[var(--card-foreground)]">{group.name}</p>
                     </div>
                     {group.required && (
                       <span className="text-xs text-red-500" aria-label="required">
@@ -161,8 +161,8 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
                         key={option.id}
                         className={`flex items-center justify-between gap-3 rounded-md px-3 py-2 transition-colors ${
                           option.is_live
-                            ? "bg-slate-800 hover:bg-slate-700 text-slate-100"
-                            : "bg-slate-800/70 text-slate-500 cursor-not-allowed line-through decoration-slate-500"
+                            ? "bg-[var(--card-surface)] hover:bg-[var(--card-accent)] text-[var(--card-foreground)]"
+                            : "bg-[var(--card-surface)]/70 text-[var(--card-muted)] cursor-not-allowed line-through decoration-[var(--card-muted)]"
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -172,11 +172,11 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
                             checked={selectedOptionIds.includes(option.id)}
                             onChange={() => toggleOption(option.id, group)}
                             disabled={!option.is_live}
-                            className="h-4 w-4 rounded border-slate-500 text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="h-4 w-4 rounded border-[var(--card-border-strong)] text-[var(--card-action-bg)] disabled:cursor-not-allowed disabled:opacity-50"
                           />
-                          <span className="text-slate-100">{option.name}</span>
+                          <span className="text-[var(--card-foreground)]">{option.name}</span>
                         </div>
-                        <span className="text-slate-400">€{option.price.toFixed(2)}</span>
+                        <span className="text-[var(--card-text-secondary)]">€{option.price.toFixed(2)}</span>
                       </label>
                     ))}
                   </div>
@@ -189,14 +189,14 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
             </div>
           )}
 
-          <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900 p-3">
-            <div className="flex justify-between text-sm text-slate-300">
+          <div className="mt-4 rounded-xl border border-[var(--card-border)] bg-[var(--card-surface)] p-3">
+            <div className="flex justify-between text-sm text-[var(--card-text-secondary)]">
               <span>Total:</span>
               <span>€{(item.price + optionTotal).toFixed(2)}</span>
             </div>
             <button
               onClick={handleSendOrder}
-              className="mt-4 w-full bg-green-600 text-white p-2 rounded-lg"
+              className="mt-4 w-full bg-[var(--card-action-bg)] text-[var(--card-action-text)] p-2 rounded-lg"
             >
               Send order
             </button>
