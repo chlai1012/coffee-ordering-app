@@ -8,19 +8,21 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [selectedOptionsMap, setSelectedOptionsMap] = useState<Record<number, number[]>>({});
+  const [customerName, setCustomerName] = useState<string>("");
 
   const sendOrder = async (
     item: MenuItem,
     selectedOptionIds: number[] = [],
     selectedOptions: OptionItem[] = []
   ) => {
+
     const optionTotal = selectedOptions.reduce((sum, option) => sum + option.price, 0);
     const order: Order = {
       id: "",
       menu_fk: item.id,
       status: "pending",
       created_at: new Date(),
-      customer_name: "Guest",
+      customer_name: customerName.trim(),
       price: item.price + optionTotal,
       selectedOptionIds,
       selectedOptions,
@@ -41,6 +43,8 @@ export default function MenuPage() {
       }
 
       alert("✅ Order sent!");
+      // refresh the whole page so selections reset
+      window.location.reload();
       return true;
     } catch (err) {
       console.error("Error sending order:", err);
@@ -182,9 +186,19 @@ export default function MenuPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-base font-bold mb-6 text-center">
+      <h1 className="text-base font-bold mb-2 text-center">
         Sheau-Yu & Han's Home Café ☕
       </h1>
+
+      <div className="mb-6 flex justify-center">
+        <input
+          type="text"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          placeholder="Enter customer name"
+          className="border rounded px-3 py-2 w-full max-w-md"
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {loading ? (
@@ -201,6 +215,7 @@ export default function MenuPage() {
               onSelectedOptionChange={(ids) =>
                 setSelectedOptionsMap((prev) => ({ ...prev, [item.id]: ids }))
               }
+              customerName={customerName}
             />
           ))
         ) : (
