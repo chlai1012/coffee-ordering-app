@@ -1,5 +1,6 @@
 ﻿"use client";
 import { useMemo, useState, useEffect } from "react";
+import { getOptionGroupInputName } from "@/lib/optionGroupName";
 import { MenuItem, OptionItem, OptionGroup } from "@/lib/types";
 
 interface Props {
@@ -168,7 +169,7 @@ export default function MenuCard({ item, sendOrder, isExpanded = false, onToggle
                         <div className="flex items-center gap-2">
                           <input
                             type={group.multi_select ? "checkbox" : "radio"}
-                            name={`option-group-${group.id}`}
+                            name={getOptionGroupInputName(item.id, group.id)}
                             checked={selectedOptionIds.includes(option.id)}
                             onChange={() => toggleOption(option.id, group)}
                             disabled={!option.is_live}
